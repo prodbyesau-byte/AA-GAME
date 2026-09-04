@@ -201,10 +201,12 @@ export class WindowManager {
         .setAlpha(0)
         .setVisible(false);
 
+      const area = window.width * window.height;
+      const foamBubbleCount = Phaser.Math.Clamp(Math.round(area / 1800), 5, 18);
       const foamBubbles: Phaser.GameObjects.Arc[] = [];
       const left = window.x - window.width / 2;
       const top = window.y - window.height / 2;
-      for (let i = 0; i < 18; i += 1) {
+      for (let i = 0; i < foamBubbleCount; i += 1) {
         const bx = left + 8 + Math.random() * (window.width - 16);
         const by = top + 8 + Math.random() * (window.height - 16);
         const br = 4 + Math.random() * 9;
@@ -226,7 +228,10 @@ export class WindowManager {
     const left = window.x - window.width / 2;
     const top = window.y - window.height / 2;
 
-    for (let i = 0; i < 10; i += 1) {
+    const dirtSpotCount = Phaser.Math.Clamp(Math.round((window.width * window.height) / 2600), 4, 10);
+    const dirtStreakCount = Phaser.Math.Clamp(Math.round((window.width * window.height) / 6200), 2, 5);
+
+    for (let i = 0; i < dirtSpotCount; i += 1) {
       const x = left + 14 + Math.random() * (window.width - 28);
       const y = top + 14 + Math.random() * (window.height - 28);
       const radius = 4 + Math.random() * 8;
@@ -237,7 +242,7 @@ export class WindowManager {
       );
     }
 
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < dirtStreakCount; i += 1) {
       const x = left + 12 + Math.random() * (window.width - 24);
       const y = top + 12 + Math.random() * (window.height - 24);
       const streak = this.scene.add.graphics().setDepth(46);

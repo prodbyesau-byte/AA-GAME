@@ -127,7 +127,7 @@ export class JobScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(this.level.spawns.ronny.y);
     if (ronnyKey === 'ronny-boss') {
-      ronny.setScale(0.056);
+      ronny.setScale(0.071);
     }
   }
 
@@ -264,13 +264,17 @@ export class JobScene extends Phaser.Scene {
       .sort((a, b) => {
         const aPhaseScore = a.phase === 'soaped' ? -1000 : 0;
         const bPhaseScore = b.phase === 'soaped' ? -1000 : 0;
-        return Math.abs(a.x - this.player.x) + aPhaseScore - (Math.abs(b.x - this.player.x) + bPhaseScore);
+        return (
+          this.horizontalDistanceToWindow(this.player.x, a) +
+          aPhaseScore -
+          (this.horizontalDistanceToWindow(this.player.x, b) + bPhaseScore)
+        );
       })[0];
   }
 
   private canReachWindow(window: WindowData): boolean {
     const isGroundWindow = window.y >= this.level.reach.groundReachY;
-    const distanceFromPlayer = Math.abs(window.x - this.player.x);
+    const distanceFromPlayer = this.horizontalDistanceToWindow(this.player.x, window);
 
     if (isGroundWindow) {
       return !this.playerOnLadder && distanceFromPlayer <= this.level.reach.groundCleanDistance;
@@ -279,9 +283,19 @@ export class JobScene extends Phaser.Scene {
     return (
       this.ladderState === 'placed' &&
       this.playerOnLadder &&
-      Math.abs(window.x - this.ladderX) <= this.level.ladder.cleanDistance &&
+      this.horizontalDistanceToWindow(this.ladderX, window) <= this.level.ladder.cleanDistance &&
       this.player.y <= GAME_RULES.ladder.highWindowReachPlayerY
     );
+  }
+
+  private horizontalDistanceToWindow(x: number, window: WindowData): number {
+    const left = window.x - window.width / 2;
+    const right = window.x + window.width / 2;
+    if (x >= left && x <= right) {
+      return 0;
+    }
+
+    return x < left ? left - x : x - right;
   }
 
   private isPlayerNearVanLadder(): boolean {
@@ -445,11 +459,15 @@ export class JobScene extends Phaser.Scene {
 
     if (this.activeWindow) {
       const isSoaped = this.activeWindow.phase === 'soaped';
+      const isGroundWindow = this.activeWindow.y >= this.level.reach.groundReachY;
       const label = isSoaped ? 'HOLD E: BRUG SQUEEGEE' : 'HOLD E: SÆB IND';
       const bgColor = isSoaped ? '#16476d' : '#d4362f';
+      const promptY = isGroundWindow
+        ? this.activeWindow.y + this.activeWindow.height / 2 + 28
+        : this.activeWindow.y - this.activeWindow.height / 2 - 28;
 
       this.prompt
-        .setPosition(this.activeWindow.x, this.activeWindow.y - this.activeWindow.height / 2 - 28)
+        .setPosition(this.activeWindow.x, promptY)
         .setText(label)
         .setStyle({ backgroundColor: bgColor })
         .setVisible(true);

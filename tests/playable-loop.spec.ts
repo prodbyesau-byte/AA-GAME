@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-const UPPER_WINDOW_X_POSITIONS = [531, 789, 1047];
-const LOWER_WINDOW_X_POSITIONS = [531, 789, 1047];
+const UPPER_WINDOW_X_POSITIONS = [534, 764, 992];
+const LOWER_WINDOW_X_POSITIONS = [534, 764, 992];
 
 async function activeScenes(page: import('@playwright/test').Page): Promise<string[]> {
   return page.evaluate(() => {
