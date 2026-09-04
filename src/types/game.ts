@@ -6,6 +6,8 @@ export interface PrototypeJob {
   paymentDkk: number;
 }
 
+export type WindowCleanPhase = 'dirty' | 'soaped' | 'clean';
+
 export interface WindowData {
   id: string;
   x: number;
@@ -13,6 +15,9 @@ export interface WindowData {
   width: number;
   height: number;
   completed: boolean;
+  phase?: WindowCleanPhase;
+  soapProgressMs?: number;
+  squeegeeProgressMs?: number;
 }
 
 export interface JobResult {

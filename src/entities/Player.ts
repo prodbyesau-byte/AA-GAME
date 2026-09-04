@@ -58,19 +58,38 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   beginCleaningPose(): void {
+    this.beginSoapingPose();
+  }
+
+  beginSoapingPose(): void {
     this.movementLocked = true;
     this.setVelocity(0, 0);
     this.setFlipX(false);
-    this.play('employee-cleaning', true);
+    this.setDepth(300);
+    this.play('employee-soaping', true);
+  }
+
+  beginSqueegeePose(): void {
+    this.movementLocked = true;
+    this.setVelocity(0, 0);
+    this.setFlipX(false);
+    this.setDepth(300);
+    this.play('employee-squeegee', true);
   }
 
   endCleaningPose(): void {
     this.movementLocked = false;
+    this.setDepth(Math.floor(this.y));
     this.play('employee-idle', true);
   }
 
   private configureSpriteScale(): void {
     const source = this.texture.getSourceImage() as HTMLCanvasElement | HTMLImageElement;
+    if (source.height > 700) {
+      this.setScale(0.2375);
+      return;
+    }
+
     if (source.height > 180) {
       this.setScale(0.95);
     }
@@ -78,6 +97,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   private configureBody(): void {
     const source = this.texture.getSourceImage() as HTMLCanvasElement | HTMLImageElement;
+    if (source.height > 700) {
+      this.body?.setSize(184, 600).setOffset(248, 352);
+      return;
+    }
+
     if (source.height > 180) {
       this.body?.setSize(46, 150).setOffset(62, 88);
       return;
@@ -110,6 +134,34 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       });
     }
 
+    if (!scene.anims.exists('employee-soaping')) {
+      scene.anims.create({
+        key: 'employee-soaping',
+        frames: [
+          { key: 'employee-soaping-0' },
+          { key: 'employee-soaping-1' },
+          { key: 'employee-soaping-2' },
+          { key: 'employee-soaping-3' },
+        ],
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+
+    if (!scene.anims.exists('employee-squeegee')) {
+      scene.anims.create({
+        key: 'employee-squeegee',
+        frames: [
+          { key: 'employee-squeegee-0' },
+          { key: 'employee-squeegee-1' },
+          { key: 'employee-squeegee-2' },
+          { key: 'employee-squeegee-3' },
+        ],
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+
     if (!scene.anims.exists('employee-cleaning')) {
       scene.anims.create({
         key: 'employee-cleaning',
@@ -119,7 +171,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           { key: 'employee-cleaning-2' },
           { key: 'employee-cleaning-3' },
         ],
-        frameRate: 8,
+        frameRate: 6,
         repeat: -1,
       });
     }

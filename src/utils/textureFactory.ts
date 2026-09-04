@@ -2,6 +2,16 @@ import Phaser from 'phaser';
 
 type CanvasTexture = Phaser.Textures.CanvasTexture;
 
+const BASE_SHEET_WIDTH = 1536;
+const BASE_SHEET_HEIGHT = 1024;
+const SPRITE_TEXTURE_SCALE = 4;
+const PLAYER_FRAME_WIDTH = 170 * SPRITE_TEXTURE_SCALE;
+const PLAYER_FRAME_HEIGHT = 240 * SPRITE_TEXTURE_SCALE;
+const PLAYER_PORTRAIT_WIDTH = 258 * SPRITE_TEXTURE_SCALE;
+const PLAYER_PORTRAIT_HEIGHT = 494 * SPRITE_TEXTURE_SCALE;
+const VAN_TEXTURE_WIDTH = 430 * SPRITE_TEXTURE_SCALE;
+const VAN_TEXTURE_HEIGHT = 195 * SPRITE_TEXTURE_SCALE;
+
 export function createPlaceholderTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists('player-sheet')) {
     createEmployeeFramesFromSheet(scene);
@@ -43,9 +53,28 @@ interface SpriteCrop {
   drawHeight?: number;
 }
 
+interface AnchoredCrop {
+  key: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  footY: number;
+  feetCenter: number;
+  scale?: number;
+}
+
 function createEmployeeFramesFromSheet(scene: Phaser.Scene): void {
   const crops: SpriteCrop[] = [
-    { key: 'employee-portrait', x: 2, y: 12, width: 258, height: 494 },
+    {
+      key: 'employee-portrait',
+      x: 2,
+      y: 12,
+      width: 258,
+      height: 494,
+      outputWidth: PLAYER_PORTRAIT_WIDTH,
+      outputHeight: PLAYER_PORTRAIT_HEIGHT,
+    },
     frameCrop('employee-idle-0', 782, 18, 47, 160),
     frameCrop('employee-idle-1', 782, 18, 47, 160),
     frameCrop('employee-idle-2', 782, 18, 47, 160),
@@ -53,10 +82,21 @@ function createEmployeeFramesFromSheet(scene: Phaser.Scene): void {
     frameCrop('employee-walk-1', 851, 18, 42, 160),
     frameCrop('employee-walk-2', 988, 18, 75, 160),
     frameCrop('employee-walk-3', 1072, 19, 82, 159),
-    frameCrop('employee-cleaning-0', 316, 522, 102, 200),
-    frameCrop('employee-cleaning-1', 457, 527, 124, 195),
-    frameCrop('employee-cleaning-2', 564, 527, 101, 198),
-    frameCrop('employee-cleaning-3', 678, 528, 108, 198),
+    // Soaping animation frames (Phase 1: smooth left-center-right motion)
+    anchoredCrop('employee-soaping-0', 678, 527, 107, 200, 725, 744),
+    anchoredCrop('employee-soaping-1', 796, 527, 104, 200, 725, 864),
+    anchoredCrop('employee-soaping-2', 912, 527, 100, 200, 725, 971),
+    anchoredCrop('employee-soaping-3', 796, 527, 104, 200, 725, 864),
+    // Squeegee animation frames (Phase 2: squeegee wipe across window)
+    anchoredCrop('employee-squeegee-0', 678, 527, 107, 200, 725, 744),
+    anchoredCrop('employee-squeegee-1', 796, 527, 104, 200, 725, 864),
+    anchoredCrop('employee-squeegee-2', 912, 527, 100, 200, 725, 971),
+    anchoredCrop('employee-squeegee-3', 1024, 527, 110, 200, 725, 1078),
+    // Legacy fallback aliases
+    anchoredCrop('employee-cleaning-0', 678, 527, 107, 200, 725, 744),
+    anchoredCrop('employee-cleaning-1', 796, 527, 104, 200, 725, 864),
+    anchoredCrop('employee-cleaning-2', 912, 527, 100, 200, 725, 971),
+    anchoredCrop('employee-cleaning-3', 1024, 527, 110, 200, 725, 1078),
   ];
 
   for (const crop of crops) {
@@ -64,17 +104,54 @@ function createEmployeeFramesFromSheet(scene: Phaser.Scene): void {
   }
 }
 
-function frameCrop(key: string, x: number, y: number, width: number, height: number): SpriteCrop {
+function anchoredCrop(
+  key: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  footY: number,
+  feetCenter: number,
+  scale = 0.88,
+): SpriteCrop {
+  const targetFootY = 236 * SPRITE_TEXTURE_SCALE;
+  const targetCenterX = 85 * SPRITE_TEXTURE_SCALE;
+  const drawWidth = Math.round(width * scale * SPRITE_TEXTURE_SCALE);
+  const drawHeight = Math.round(height * scale * SPRITE_TEXTURE_SCALE);
+  const scaledFootY = (footY - y) * scale * SPRITE_TEXTURE_SCALE;
+  const scaledFeetCenterX = (feetCenter - x) * scale * SPRITE_TEXTURE_SCALE;
+
   return {
     key,
     x,
     y,
     width,
     height,
-    outputWidth: 170,
-    outputHeight: 240,
-    drawX: Math.round((170 - width) / 2),
-    drawY: 240 - height,
+    outputWidth: PLAYER_FRAME_WIDTH,
+    outputHeight: PLAYER_FRAME_HEIGHT,
+    drawX: Math.round(targetCenterX - scaledFeetCenterX),
+    drawY: Math.round(targetFootY - scaledFootY),
+    drawWidth,
+    drawHeight,
+  };
+}
+
+function frameCrop(key: string, x: number, y: number, width: number, height: number): SpriteCrop {
+  const drawWidth = width * SPRITE_TEXTURE_SCALE;
+  const drawHeight = height * SPRITE_TEXTURE_SCALE;
+
+  return {
+    key,
+    x,
+    y,
+    width,
+    height,
+    outputWidth: PLAYER_FRAME_WIDTH,
+    outputHeight: PLAYER_FRAME_HEIGHT,
+    drawX: Math.round((PLAYER_FRAME_WIDTH - drawWidth) / 2),
+    drawY: PLAYER_FRAME_HEIGHT - drawHeight,
+    drawWidth,
+    drawHeight,
   };
 }
 
@@ -86,19 +163,23 @@ function createTextureFromSheet(scene: Phaser.Scene, crop: SpriteCrop): void {
   const width = crop.outputWidth ?? crop.width;
   const height = crop.outputHeight ?? crop.height;
   const source = scene.textures.get(crop.sourceKey ?? 'player-sheet').getSourceImage() as CanvasImageSource;
+  const sourceSize = getCanvasImageSize(source);
+  const sourceScaleX = sourceSize.width / BASE_SHEET_WIDTH;
+  const sourceScaleY = sourceSize.height / BASE_SHEET_HEIGHT;
   const texture = makeCanvas(scene, crop.key, width, height);
   const ctx = texture.context;
   ctx.clearRect(0, 0, width, height);
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   const drawWidth = crop.drawWidth ?? (crop.drawX === undefined ? width : crop.width);
   const drawHeight = crop.drawHeight ?? (crop.drawY === undefined ? height : crop.height);
 
   ctx.drawImage(
     source,
-    crop.x,
-    crop.y,
-    crop.width,
-    crop.height,
+    Math.round(crop.x * sourceScaleX),
+    Math.round(crop.y * sourceScaleY),
+    Math.round(crop.width * sourceScaleX),
+    Math.round(crop.height * sourceScaleY),
     crop.drawX ?? 0,
     crop.drawY ?? 0,
     drawWidth,
@@ -110,6 +191,14 @@ function createTextureFromSheet(scene: Phaser.Scene, crop: SpriteCrop): void {
     removeSheetBackground(ctx, width, height);
   }
   texture.refresh();
+}
+
+function getCanvasImageSize(source: CanvasImageSource): { width: number; height: number } {
+  const image = source as HTMLImageElement & HTMLCanvasElement & HTMLVideoElement;
+  return {
+    width: image.naturalWidth || image.videoWidth || image.width,
+    height: image.naturalHeight || image.videoHeight || image.height,
+  };
 }
 
 function removeSheetBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
@@ -169,7 +258,7 @@ function isLikelyCheckerboard(red: number, green: number, blue: number, alpha: n
 
   const max = Math.max(red, green, blue);
   const min = Math.min(red, green, blue);
-  return max - min < 18 && min > 216;
+  return max - min < 15 && min > 240;
 }
 
 function removeDarkBackdropBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
@@ -249,6 +338,14 @@ function createEmployeeFrames(scene: Phaser.Scene): void {
     { key: 'employee-cleaning-1', leftLeg: -3, rightLeg: 3, frontArm: 10, backArm: 1, lean: 5, bob: -2, tool: 0 },
     { key: 'employee-cleaning-2', leftLeg: -3, rightLeg: 3, frontArm: 22, backArm: 1, lean: 4, bob: 0, tool: 8 },
     { key: 'employee-cleaning-3', leftLeg: -3, rightLeg: 3, frontArm: 12, backArm: 1, lean: 2, bob: -1, tool: 2 },
+    { key: 'employee-soaping-0', leftLeg: -3, rightLeg: 3, frontArm: 14, backArm: 1, lean: 2, bob: 0, tool: -6 },
+    { key: 'employee-soaping-1', leftLeg: -3, rightLeg: 3, frontArm: 18, backArm: 1, lean: 4, bob: -1, tool: 0 },
+    { key: 'employee-soaping-2', leftLeg: -3, rightLeg: 3, frontArm: 24, backArm: 1, lean: 5, bob: 0, tool: 6 },
+    { key: 'employee-soaping-3', leftLeg: -3, rightLeg: 3, frontArm: 12, backArm: 1, lean: 3, bob: -2, tool: -2 },
+    { key: 'employee-squeegee-0', leftLeg: -3, rightLeg: 3, frontArm: 20, backArm: 2, lean: 3, bob: 0, tool: 8 },
+    { key: 'employee-squeegee-1', leftLeg: -3, rightLeg: 3, frontArm: 10, backArm: 1, lean: 4, bob: -2, tool: 4 },
+    { key: 'employee-squeegee-2', leftLeg: -3, rightLeg: 3, frontArm: 24, backArm: 2, lean: 5, bob: 0, tool: 10 },
+    { key: 'employee-squeegee-3', leftLeg: -3, rightLeg: 3, frontArm: 14, backArm: 1, lean: 2, bob: -1, tool: 0 },
   ];
 
   for (const spec of frameSpecs) {
@@ -361,8 +458,8 @@ function createVanTexture(scene: Phaser.Scene): void {
       y: 13,
       width: 772,
       height: 350,
-      outputWidth: 430,
-      outputHeight: 195,
+      outputWidth: VAN_TEXTURE_WIDTH,
+      outputHeight: VAN_TEXTURE_HEIGHT,
     });
     return;
   }

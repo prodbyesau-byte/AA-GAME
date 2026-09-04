@@ -15,8 +15,8 @@ export class PreloadScene extends Phaser.Scene {
     });
     label.setOrigin(0.5);
 
-    this.load.image('player-sheet', '/assets/player-sprite.png');
-    this.load.image('car-sheet', '/assets/car-sprite.png');
+    this.load.image('player-sheet', '/assets/player-sprite-4k.png');
+    this.load.image('car-sheet', '/assets/car-sprite-4k.png');
   }
 
   create(): void {

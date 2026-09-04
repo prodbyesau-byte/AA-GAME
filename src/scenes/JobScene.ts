@@ -27,9 +27,9 @@ export class JobScene extends Phaser.Scene {
   private activeWindow?: WindowData;
   private cleaningWindow?: WindowData;
   private cleaningHoldMs = 0;
-  private cleaningStartedAtMs = 0;
+  private cleaningPhase: 'soap' | 'squeegee' = 'soap';
   private mustReleaseInteract = false;
-  private readonly requiredCleaningHoldMs = 4800;
+  private readonly requiredPhaseHoldMs = 15000;
 
   constructor() {
     super(SCENE_KEYS.JOB);
@@ -54,10 +54,10 @@ export class JobScene extends Phaser.Scene {
       .text(0, 0, 'E', {
         fontFamily: 'Arial',
         fontStyle: 'bold',
-        fontSize: '18px',
+        fontSize: '17px',
         color: '#f7efe1',
         backgroundColor: '#d4362f',
-        padding: { left: 12, right: 12, top: 7, bottom: 7 },
+        padding: { left: 14, right: 14, top: 8, bottom: 8 },
       })
       .setOrigin(0.5)
       .setDepth(900)
@@ -89,7 +89,7 @@ export class JobScene extends Phaser.Scene {
     this.updateInteractionPrompt();
   }
 
-  private updateCleaningHold(delta: number): void {
+  private updateCleaningHold(_delta: number): void {
     if (!this.interactKey.isDown) {
       this.mustReleaseInteract = false;
       this.resetCleaningHold();
@@ -101,24 +101,52 @@ export class JobScene extends Phaser.Scene {
       return;
     }
 
-    if (this.cleaningWindow?.id !== this.activeWindow.id) {
+    const currentPhase: 'soap' | 'squeegee' = this.activeWindow.phase === 'soaped' ? 'squeegee' : 'soap';
+
+    if (this.cleaningWindow?.id !== this.activeWindow.id || this.cleaningPhase !== currentPhase) {
       this.cleaningWindow = this.activeWindow;
-      this.cleaningHoldMs = 0;
-      this.cleaningStartedAtMs = performance.now();
-      this.player.beginCleaningPose();
+      this.cleaningPhase = currentPhase;
+      this.cleaningHoldMs = currentPhase === 'soap'
+        ? (this.activeWindow.soapProgressMs ?? 0)
+        : (this.activeWindow.squeegeeProgressMs ?? 0);
+      if (currentPhase === 'soap') {
+        this.player.beginSoapingPose();
+      } else {
+        this.player.beginSqueegeePose();
+      }
     }
 
-    this.cleaningHoldMs = Math.min(this.requiredCleaningHoldMs, performance.now() - this.cleaningStartedAtMs);
-    this.updateHoldMeter(this.activeWindow);
+    this.cleaningHoldMs = Math.min(this.requiredPhaseHoldMs, this.cleaningHoldMs + _delta);
 
-    if (this.cleaningHoldMs >= this.requiredCleaningHoldMs) {
-      const completedWindowId = this.activeWindow.id;
-      this.cleaningWindow = undefined;
-      this.cleaningHoldMs = 0;
-      this.cleaningStartedAtMs = 0;
-      this.mustReleaseInteract = true;
-      this.hideHoldMeter();
-      this.handleWindowCleaned(completedWindowId);
+    if (currentPhase === 'soap') {
+      this.activeWindow.soapProgressMs = this.cleaningHoldMs;
+      this.windows.setSoapProgress(this.activeWindow.id, this.cleaningHoldMs / this.requiredPhaseHoldMs);
+    } else {
+      this.activeWindow.squeegeeProgressMs = this.cleaningHoldMs;
+      this.windows.setSqueegeeProgress(this.activeWindow.id, this.cleaningHoldMs / this.requiredPhaseHoldMs);
+    }
+
+    this.updateHoldMeter(this.activeWindow, currentPhase);
+
+    if (this.cleaningHoldMs >= this.requiredPhaseHoldMs) {
+      if (currentPhase === 'soap') {
+        const windowId = this.activeWindow.id;
+        this.windows.markSoaped(windowId);
+        this.activeWindow.phase = 'soaped';
+        this.activeWindow.soapProgressMs = this.requiredPhaseHoldMs;
+        this.activeWindow.squeegeeProgressMs = 0;
+        this.mustReleaseInteract = true;
+        this.resetCleaningHold();
+        this.showPhaseNotification('SÆBE PÅFØRT! BRUG SQUEEGEE NU');
+      } else {
+        const completedWindowId = this.activeWindow.id;
+        this.activeWindow.squeegeeProgressMs = this.requiredPhaseHoldMs;
+        this.cleaningWindow = undefined;
+        this.cleaningHoldMs = 0;
+        this.mustReleaseInteract = true;
+        this.hideHoldMeter();
+        this.handleWindowCleaned(completedWindowId);
+      }
     }
   }
 
@@ -128,11 +156,39 @@ export class JobScene extends Phaser.Scene {
       return;
     }
 
+    if (this.cleaningPhase === 'soap') {
+      this.cleaningWindow.soapProgressMs = this.cleaningHoldMs;
+    } else {
+      this.cleaningWindow.squeegeeProgressMs = this.cleaningHoldMs;
+    }
+
     this.cleaningWindow = undefined;
     this.cleaningHoldMs = 0;
-    this.cleaningStartedAtMs = 0;
     this.player.endCleaningPose();
     this.hideHoldMeter();
+  }
+
+  private showPhaseNotification(text: string): void {
+    if (!this.activeWindow) return;
+    const notification = this.add
+      .text(this.activeWindow.x, this.activeWindow.y - this.activeWindow.height / 2 - 40, text, {
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+        fontSize: '16px',
+        color: '#f7efe1',
+        backgroundColor: '#16476d',
+        padding: { left: 14, right: 14, top: 6, bottom: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(999);
+
+    this.tweens.add({
+      targets: notification,
+      y: notification.y - 20,
+      alpha: 0,
+      duration: 1400,
+      onComplete: () => notification.destroy(),
+    });
   }
 
   private handleWindowCleaned(windowId: string): void {
@@ -152,28 +208,33 @@ export class JobScene extends Phaser.Scene {
       return;
     }
 
+    const isSoaped = this.activeWindow.phase === 'soaped';
+    const label = isSoaped ? 'HOLD E: BRUG SQUEEGEE' : 'HOLD E: SÆB IND';
+    const bgColor = isSoaped ? '#16476d' : '#d4362f';
+
     this.prompt
       .setPosition(this.activeWindow.x, this.activeWindow.y - this.activeWindow.height / 2 - 28)
-      .setText('HOLD E NEDE')
+      .setText(label)
+      .setStyle({ backgroundColor: bgColor })
       .setVisible(true);
   }
 
   private createHoldMeter(): void {
     this.holdMeterBack = this.add
-      .rectangle(0, 0, 118, 12, 0x101923, 0.94)
+      .rectangle(0, 0, 160, 14, 0x101923, 0.94)
       .setOrigin(0, 0.5)
       .setDepth(901)
       .setVisible(false);
     this.holdMeterFill = this.add
-      .rectangle(0, 0, 0, 12, COLORS.companyRed, 1)
+      .rectangle(0, 0, 0, 14, COLORS.companyRed, 1)
       .setOrigin(0, 0.5)
       .setDepth(902)
       .setVisible(false);
     this.holdLabel = this.add
-      .text(0, 0, 'RENSER', {
+      .text(0, 0, '', {
         fontFamily: 'Arial',
         fontStyle: 'bold',
-        fontSize: '14px',
+        fontSize: '13px',
         color: '#f7efe1',
         stroke: '#17212f',
         strokeThickness: 4,
@@ -183,14 +244,26 @@ export class JobScene extends Phaser.Scene {
       .setVisible(false);
   }
 
-  private updateHoldMeter(window: WindowData): void {
-    const x = window.x - 59;
-    const y = window.y - window.height / 2 - 12;
-    const progress = this.cleaningHoldMs / this.requiredCleaningHoldMs;
+  private updateHoldMeter(window: WindowData, phase: 'soap' | 'squeegee'): void {
+    const meterWidth = 160;
+    const x = window.x - meterWidth / 2;
+    const y = window.y - window.height / 2 - 14;
+    const progress = this.cleaningHoldMs / this.requiredPhaseHoldMs;
+    const seconds = (this.cleaningHoldMs / 1000).toFixed(1);
 
-    this.holdMeterBack.setPosition(x, y).setVisible(true);
-    this.holdMeterFill.setPosition(x, y).setSize(118 * progress, 12).setVisible(true);
-    this.holdLabel.setPosition(window.x, y - 19).setText(`RENSER ${Math.round(progress * 100)}%`).setVisible(true);
+    const fillColor = phase === 'soap' ? 0x48cae4 : 0x0077b6;
+    const phaseName = phase === 'soap' ? 'SÆBER IND' : 'SQUEEGEE';
+
+    this.holdMeterBack.setPosition(x, y).setSize(meterWidth, 14).setVisible(true);
+    this.holdMeterFill
+      .setPosition(x, y)
+      .setSize(meterWidth * progress, 14)
+      .setFillStyle(fillColor, 1)
+      .setVisible(true);
+    this.holdLabel
+      .setPosition(window.x, y - 20)
+      .setText(`${phaseName} ${Math.round(progress * 100)}% (${seconds}s / 15s)`)
+      .setVisible(true);
   }
 
   private hideHoldMeter(): void {

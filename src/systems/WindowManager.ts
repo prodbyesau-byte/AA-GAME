@@ -9,6 +9,8 @@ interface WindowView {
   dirt: Phaser.GameObjects.GameObject[];
   glow: Phaser.GameObjects.Rectangle;
   mullions: Phaser.GameObjects.Graphics;
+  foam: Phaser.GameObjects.Rectangle;
+  foamBubbles: Phaser.GameObjects.Arc[];
 }
 
 export class WindowManager {
@@ -23,11 +25,27 @@ export class WindowManager {
 
   getNearestDirtyWindow(playerX: number): WindowData | undefined {
     const interactionDistance = 88;
-    return this.windows
+    const candidates = this.windows
       .filter((window) => !window.completed)
       .map((window) => ({ window, distance: Math.abs(window.x - playerX) }))
-      .filter((entry) => entry.distance <= interactionDistance)
-      .sort((a, b) => a.distance - b.distance)[0]?.window;
+      .filter((entry) => entry.distance <= interactionDistance);
+
+    if (candidates.length === 0) return undefined;
+
+    // Prioritize an active window in progress (soaped phase)
+    const activeSoaped = candidates.find((c) => c.window.phase === 'soaped');
+    if (activeSoaped) return activeSoaped.window;
+
+    // Sort by horizontal closeness, and prefer lower ground-level windows first
+    candidates.sort((a, b) => {
+      const diffX = a.distance - b.distance;
+      if (Math.abs(diffX) < 18) {
+        return b.window.y - a.window.y; // Higher Y is lower on the wall (ground level)
+      }
+      return diffX;
+    });
+
+    return candidates[0]?.window;
   }
 
   setFocusedWindow(windowId?: string): void {
@@ -40,6 +58,71 @@ export class WindowManager {
     }
   }
 
+  setSoapProgress(windowId: string, progress: number): void {
+    const view = this.views.get(windowId);
+    const window = this.windows.find((candidate) => candidate.id === windowId);
+    if (!view || !window) return;
+
+    const clamped = Phaser.Math.Clamp(progress, 0, 1);
+    view.foam.setVisible(true);
+    view.foam.setSize(window.width, window.height);
+    view.foam.setPosition(window.x, window.y);
+    view.foam.setAlpha(clamped * 0.88);
+
+    const bubbleCountToEnable = Math.floor(clamped * view.foamBubbles.length);
+    view.foamBubbles.forEach((bubble, index) => {
+      bubble.setVisible(index < bubbleCountToEnable);
+      if (index < bubbleCountToEnable) {
+        bubble.setAlpha(0.7 + Math.random() * 0.25);
+      }
+    });
+
+    view.dirt.forEach((d) => {
+      const alphaObj = d as unknown as { setAlpha?: (val: number) => void };
+      if (typeof alphaObj.setAlpha === 'function') {
+        alphaObj.setAlpha(Math.max(0.1, 1 - clamped * 0.7));
+      }
+    });
+  }
+
+  markSoaped(windowId: string): void {
+    const window = this.windows.find((candidate) => candidate.id === windowId);
+    const view = this.views.get(windowId);
+    if (!window || !view) return;
+
+    window.phase = 'soaped';
+    view.foam.setVisible(true);
+    view.foam.setSize(window.width, window.height);
+    view.foam.setPosition(window.x, window.y);
+    view.foam.setAlpha(0.9);
+    view.foamBubbles.forEach((b) => b.setVisible(true).setAlpha(0.85));
+
+    this.scene.tweens.add({
+      targets: view.foam,
+      alpha: 1,
+      yoyo: true,
+      duration: 160,
+    });
+  }
+
+  setSqueegeeProgress(windowId: string, progress: number): void {
+    const view = this.views.get(windowId);
+    const window = this.windows.find((candidate) => candidate.id === windowId);
+    if (!view || !window) return;
+
+    const clamped = Phaser.Math.Clamp(progress, 0, 1);
+    const remainingHeight = Math.max(0, window.height * (1 - clamped));
+    
+    // Foam shrinks from top downwards
+    view.foam.setSize(window.width, remainingHeight);
+    view.foam.setPosition(window.x, window.y + (window.height / 2) - (remainingHeight / 2));
+
+    const foamTopY = window.y - (window.height / 2) + (window.height * clamped);
+    view.foamBubbles.forEach((bubble) => {
+      bubble.setVisible(bubble.y >= foamTopY);
+    });
+  }
+
   markCompleted(windowId: string): void {
     const window = this.windows.find((candidate) => candidate.id === windowId);
     if (!window || window.completed) {
@@ -47,11 +130,14 @@ export class WindowManager {
     }
 
     window.completed = true;
+    window.phase = 'clean';
     const view = this.views.get(windowId);
     if (!view) {
       return;
     }
 
+    view.foam.setVisible(false);
+    view.foamBubbles.forEach((b) => b.destroy());
     view.glass.setFillStyle(0xa7def0, 1);
     view.frame.setStrokeStyle(4, 0xf7efe1, 0.72);
     view.glow.setVisible(false);
@@ -116,8 +202,30 @@ export class WindowManager {
       shine.lineTo(window.x + window.width * 0.37, window.y - window.height * 0.45);
       shine.strokePath();
 
+      const foam = this.scene.add
+        .rectangle(window.x, window.y, window.width, window.height, 0xf4f9ff)
+        .setStrokeStyle(1, 0xffffff, 0.6)
+        .setDepth(12)
+        .setAlpha(0)
+        .setVisible(false);
+
+      const foamBubbles: Phaser.GameObjects.Arc[] = [];
+      const left = window.x - window.width / 2;
+      const top = window.y - window.height / 2;
+      for (let i = 0; i < 18; i += 1) {
+        const bx = left + 8 + Math.random() * (window.width - 16);
+        const by = top + 8 + Math.random() * (window.height - 16);
+        const br = 4 + Math.random() * 9;
+        const bubble = this.scene.add
+          .circle(bx, by, br, 0xffffff, 0.8)
+          .setStrokeStyle(1, 0xcae8ff, 0.9)
+          .setDepth(13)
+          .setVisible(false);
+        foamBubbles.push(bubble);
+      }
+
       const dirt = this.createDirt(window);
-      this.views.set(window.id, { frame, glass, shine, dirt, glow, mullions });
+      this.views.set(window.id, { frame, glass, shine, dirt, glow, mullions, foam, foamBubbles });
     }
   }
 

@@ -31,8 +31,11 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
 
-    this.add.image(858, 586, 'anders-van').setOrigin(0.5, 1).setScale(1.08);
-    this.add.image(704, 620, 'employee-portrait').setOrigin(0.5, 1).setScale(0.72);
+    const van = this.add.image(858, 586, 'anders-van').setOrigin(0.5, 1);
+    van.setScale(van.texture.getSourceImage().height > 390 ? 0.27 : 1.08);
+
+    const portrait = this.add.image(704, 620, 'employee-portrait').setOrigin(0.5, 1);
+    portrait.setScale(portrait.texture.getSourceImage().height > 900 ? 0.18 : 0.72);
 
     const startButton = this.add
       .text(122, 326, 'START JOB', {

@@ -49,16 +49,28 @@ async function walkTo(page: import('@playwright/test').Page, targetX: number) {
 }
 
 async function cleanCurrentWindow(page: import('@playwright/test').Page) {
+  // Phase 1: Soap window (15 seconds)
   await page.keyboard.down('E');
-  await page.waitForTimeout(5400);
+  await page.waitForTimeout(15250);
   await page.keyboard.up('E');
+  await page.waitForTimeout(150);
+
+  // Phase 2: Squeegee soap off (15 seconds)
+  await page.keyboard.down('E');
+  await page.waitForTimeout(15250);
+  await page.keyboard.up('E');
+  await page.waitForTimeout(100);
 }
 
-test('complete all six Andersen Auto Service windows', async ({ page }) => {
+test('complete all six Andersen Auto Service windows with soap and squeegee', async ({ page }) => {
+  test.setTimeout(360000);
   const consoleErrors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') {
-      consoleErrors.push(message.text());
+      const text = message.text();
+      if (!text.includes('favicon')) {
+        consoleErrors.push(text);
+      }
     }
   });
 
