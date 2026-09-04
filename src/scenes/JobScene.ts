@@ -135,7 +135,7 @@ export class JobScene extends Phaser.Scene {
     this.ladderSprite = this.add
       .image(this.level.ladder.roofSpawn.x, this.level.ladder.roofSpawn.y, 'work-ladder')
       .setOrigin(0.5, 1)
-      .setScale(0.58)
+      .setScale(0.18)
       .setRotation(Math.PI / 2)
       .setDepth(45);
   }
@@ -186,9 +186,9 @@ export class JobScene extends Phaser.Scene {
     if (this.ladderState === 'onVan') {
       this.ladderSprite
         .setPosition(this.level.ladder.roofSpawn.x, this.level.ladder.roofSpawn.y)
-        .setScale(0.58)
+        .setScale(0.18)
         .setRotation(Math.PI / 2)
-        .setDepth(45)
+        .setDepth(26)
         .setVisible(true);
       return;
     }
@@ -207,7 +207,7 @@ export class JobScene extends Phaser.Scene {
       .setPosition(this.ladderX + GAME_RULES.ladder.playerOffsetX, this.level.ladder.baseY)
       .setScale(GAME_RULES.ladder.placedScale)
       .setRotation(-0.14)
-      .setDepth(260)
+      .setDepth(44)
       .setVisible(true);
   }
 
@@ -588,15 +588,7 @@ export class JobScene extends Phaser.Scene {
   }
 
   private drawLocation(): void {
-    this.add.image(0, 0, 'sky-background').setOrigin(0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setDepth(0);
-
-    this.add.image(0, 0, 'building-facade').setOrigin(0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setDepth(4);
-
-    const road = this.add
-      .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'road-sidewalk-loop')
-      .setOrigin(0)
-      .setDepth(18);
-    road.setTileScale(GAME_WIDTH / road.texture.getSourceImage().width, GAME_HEIGHT / road.texture.getSourceImage().height);
+    this.add.image(0, 0, 'job-scene-background').setOrigin(0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setDepth(0);
 
     this.add
       .text(GAME_WIDTH / 2, 256, 'ANDERSEN AUTO SERVICE', {

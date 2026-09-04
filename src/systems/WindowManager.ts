@@ -138,14 +138,16 @@ export class WindowManager {
 
     view.foam.setVisible(false);
     view.foamBubbles.forEach((b) => b.destroy());
-    view.glass.setFillStyle(0xa7def0, 1);
-    view.frame.setStrokeStyle(4, 0xf7efe1, 0.72);
+    view.glass.setVisible(false).setAlpha(0);
+    view.frame.setVisible(false).setAlpha(0);
+    view.mullions.clear();
+    view.shine.clear();
     view.glow.setVisible(false);
     view.dirt.forEach((piece) => piece.destroy());
 
     this.scene.tweens.add({
-      targets: view.glass,
-      alpha: 0.72,
+      targets: view.glow,
+      alpha: 0.16,
       yoyo: true,
       duration: 180,
       repeat: 1,
@@ -158,7 +160,7 @@ export class WindowManager {
           window.y - window.height / 2 + Math.random() * window.height,
           'sparkle',
         )
-        .setDepth(22)
+        .setDepth(55)
         .setAlpha(0.95)
         .setScale(0.22 + Math.random() * 0.18);
 
@@ -177,35 +179,25 @@ export class WindowManager {
   private createViews(): void {
     for (const window of this.windows) {
       const glow = this.scene.add
-        .rectangle(window.x, window.y, window.width + 34, window.height + 34, 0xf7efe1, 0.18)
-        .setStrokeStyle(3, 0xf7efe1, 0.62)
-        .setDepth(7)
+        .rectangle(window.x, window.y, window.width + 18, window.height + 18, 0xfff1b8, 0.1)
+        .setStrokeStyle(3, 0xfff1b8, 0.42)
+        .setDepth(42)
         .setVisible(false);
       const frame = this.scene.add
-        .rectangle(window.x, window.y, window.width + 18, window.height + 18, 0x182431)
-        .setStrokeStyle(4, 0x3d4d5b, 0.9)
-        .setDepth(8);
+        .rectangle(window.x, window.y, window.width, window.height, 0x000000, 0)
+        .setDepth(41)
+        .setVisible(false);
       const glass = this.scene.add
-        .rectangle(window.x, window.y, window.width, window.height, COLORS.glass, 0.9)
-        .setStrokeStyle(2, 0xf7efe1, 0.22)
-        .setDepth(9);
-      const mullions = this.scene.add.graphics().setDepth(10);
-      mullions.lineStyle(4, 0x182431, 0.62);
-      mullions.lineBetween(window.x, window.y - window.height / 2, window.x, window.y + window.height / 2);
-      mullions.lineBetween(window.x - window.width / 2, window.y, window.x + window.width / 2, window.y);
-      const shine = this.scene.add.graphics().setDepth(10);
-      shine.lineStyle(3, 0xf7efe1, 0.28);
-      shine.beginPath();
-      shine.moveTo(window.x - window.width * 0.33, window.y - window.height * 0.34);
-      shine.lineTo(window.x - window.width * 0.05, window.y - window.height * 0.48);
-      shine.moveTo(window.x + window.width * 0.14, window.y - window.height * 0.35);
-      shine.lineTo(window.x + window.width * 0.37, window.y - window.height * 0.45);
-      shine.strokePath();
+        .rectangle(window.x, window.y, window.width, window.height, COLORS.glass, 0)
+        .setDepth(41)
+        .setVisible(false);
+      const mullions = this.scene.add.graphics().setDepth(43);
+      const shine = this.scene.add.graphics().setDepth(43);
 
       const foam = this.scene.add
         .rectangle(window.x, window.y, window.width, window.height, 0xf4f9ff)
         .setStrokeStyle(1, 0xffffff, 0.6)
-        .setDepth(12)
+        .setDepth(48)
         .setAlpha(0)
         .setVisible(false);
 
@@ -219,7 +211,7 @@ export class WindowManager {
         const bubble = this.scene.add
           .circle(bx, by, br, 0xffffff, 0.8)
           .setStrokeStyle(1, 0xcae8ff, 0.9)
-          .setDepth(13)
+          .setDepth(49)
           .setVisible(false);
         foamBubbles.push(bubble);
       }
@@ -241,14 +233,14 @@ export class WindowManager {
       pieces.push(
         this.scene.add
           .circle(x, y, radius, COLORS.grime, 0.34 + Math.random() * 0.24)
-          .setDepth(11),
+          .setDepth(46),
       );
     }
 
     for (let i = 0; i < 5; i += 1) {
       const x = left + 12 + Math.random() * (window.width - 24);
       const y = top + 12 + Math.random() * (window.height - 24);
-      const streak = this.scene.add.graphics().setDepth(11);
+      const streak = this.scene.add.graphics().setDepth(46);
       streak.lineStyle(2, COLORS.grime, 0.36);
       streak.beginPath();
       streak.moveTo(x, y);

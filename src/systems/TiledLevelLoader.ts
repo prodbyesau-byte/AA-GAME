@@ -25,13 +25,13 @@ const DEFAULT_LEVEL: JobLevelConfig = {
     roofSpawn: { x: 190, y: 500 },
     pickupZone: { x: 0, y: 545, width: 535, height: 145 },
     wallZone: { x: 380, y: 540, width: 550, height: 150 },
-    baseY: 556,
+    baseY: 630,
     climbBottomY: 652,
     climbTopY: 404,
     cleanDistance: 92,
   },
   reach: {
-    groundReachY: 390,
+    groundReachY: 470,
     groundCleanDistance: 82,
   },
   playerLane: {

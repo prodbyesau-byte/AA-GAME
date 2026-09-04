@@ -9,76 +9,76 @@
       "name": "windows",
       "objects": [
         {
-          "height": 122,
           "id": 1,
           "name": "aas-front-1",
           "properties": [{ "name": "row", "type": "string", "value": "upper" }],
           "rotation": 0,
           "type": "window",
           "visible": true,
-          "width": 118,
-          "x": 391,
-          "y": 219
+          "width": 170,
+          "x": 446,
+          "y": 376,
+          "height": 58
         },
         {
-          "height": 122,
           "id": 2,
           "name": "aas-front-2",
           "properties": [{ "name": "row", "type": "string", "value": "upper" }],
           "rotation": 0,
           "type": "window",
           "visible": true,
-          "width": 118,
-          "x": 551,
-          "y": 219
+          "width": 170,
+          "x": 704,
+          "y": 376,
+          "height": 58
         },
         {
-          "height": 122,
           "id": 3,
           "name": "aas-front-3",
           "properties": [{ "name": "row", "type": "string", "value": "upper" }],
           "rotation": 0,
           "type": "window",
           "visible": true,
-          "width": 118,
-          "x": 711,
-          "y": 219
+          "width": 170,
+          "x": 962,
+          "y": 376,
+          "height": 58
         },
         {
-          "height": 108,
           "id": 4,
           "name": "aas-lower-1",
           "properties": [{ "name": "row", "type": "string", "value": "ground" }],
           "rotation": 0,
           "type": "window",
           "visible": true,
-          "width": 126,
-          "x": 393,
-          "y": 384
+          "width": 170,
+          "x": 446,
+          "y": 446,
+          "height": 150
         },
         {
-          "height": 108,
           "id": 5,
           "name": "aas-lower-2",
           "properties": [{ "name": "row", "type": "string", "value": "ground" }],
           "rotation": 0,
           "type": "window",
           "visible": true,
-          "width": 126,
-          "x": 573,
-          "y": 384
+          "width": 170,
+          "x": 704,
+          "y": 446,
+          "height": 150
         },
         {
-          "height": 108,
           "id": 6,
           "name": "aas-lower-3",
           "properties": [{ "name": "row", "type": "string", "value": "ground" }],
           "rotation": 0,
           "type": "window",
           "visible": true,
-          "width": 126,
-          "x": 753,
-          "y": 384
+          "width": 170,
+          "x": 962,
+          "y": 446,
+          "height": 150
         }
       ],
       "opacity": 1,
@@ -95,7 +95,7 @@
         { "height": 1, "id": 7, "name": "player", "point": true, "rotation": 0, "type": "spawn", "visible": true, "width": 1, "x": 410, "y": 652 },
         { "height": 1, "id": 8, "name": "van", "point": true, "rotation": 0, "type": "spawn", "visible": true, "width": 1, "x": 190, "y": 646 },
         { "height": 1, "id": 9, "name": "cleaning-kit", "point": true, "rotation": 0, "type": "prop", "visible": true, "width": 1, "x": 340, "y": 662 },
-        { "height": 1, "id": 10, "name": "ronny", "point": true, "rotation": 0, "type": "npc", "visible": true, "width": 1, "x": 1034, "y": 656 },
+        { "height": 1, "id": 10, "name": "ronny", "point": true, "rotation": 0, "type": "npc", "visible": true, "width": 1, "x": 1170, "y": 656 },
         { "height": 1, "id": 11, "name": "ladder-roof", "point": true, "rotation": 0, "type": "prop", "visible": true, "width": 1, "x": 190, "y": 500 }
       ],
       "opacity": 1,
@@ -140,18 +140,18 @@
           "id": 14,
           "name": "ladder-wall",
           "properties": [
-            { "name": "baseY", "type": "float", "value": 556 },
+            { "name": "baseY", "type": "float", "value": 630 },
             { "name": "climbBottomY", "type": "float", "value": 652 },
             { "name": "climbTopY", "type": "float", "value": 404 },
-            { "name": "groundReachY", "type": "float", "value": 390 },
+            { "name": "groundReachY", "type": "float", "value": 470 },
             { "name": "groundCleanDistance", "type": "float", "value": 82 },
-            { "name": "ladderCleanDistance", "type": "float", "value": 92 }
+            { "name": "ladderCleanDistance", "type": "float", "value": 105 }
           ],
           "rotation": 0,
           "type": "interaction",
           "visible": true,
-          "width": 550,
-          "x": 380,
+          "width": 740,
+          "x": 395,
           "y": 540
         }
       ],
