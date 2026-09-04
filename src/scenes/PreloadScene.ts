@@ -18,6 +18,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('player-sheet', '/assets/player-sprite-4k.png');
     this.load.image('car-sheet', '/assets/car-sprite-4k.png');
     this.load.image('ronny-sheet', '/assets/ronny-sprite-4k.png');
+    this.load.image('sky-background', '/assets/sky-background-4k-v1.png');
+    this.load.image('building-facade', '/assets/building-facade-4k-v1.png');
+    this.load.image('road-sidewalk-loop', '/assets/road-sidewalk-loop-4k-v1.png');
     this.load.tilemapTiledJSON('andersen-auto-service-map', '/assets/maps/andersen-auto-service.json');
   }
 

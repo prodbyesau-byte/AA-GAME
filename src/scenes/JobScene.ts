@@ -588,82 +588,27 @@ export class JobScene extends Phaser.Scene {
   }
 
   private drawLocation(): void {
-    const graphics = this.add.graphics();
-    graphics.fillGradientStyle(0x8fc6d9, 0xb8d8e4, 0xd8b36e, 0x788b98, 1);
-    graphics.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.add.image(0, 0, 'sky-background').setOrigin(0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setDepth(0);
 
-    graphics.fillStyle(0x334756, 0.38);
-    graphics.fillRect(0, 118, 220, 360);
-    graphics.fillRect(1050, 92, 230, 390);
-    graphics.fillStyle(0x425565, 0.32);
-    graphics.fillRect(92, 178, 140, 300);
-    graphics.fillRect(975, 162, 128, 318);
+    this.add.image(0, 0, 'building-facade').setOrigin(0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setDepth(4);
 
-    graphics.fillStyle(0x57636d, 1);
-    graphics.fillRect(0, 552, GAME_WIDTH, 168);
-    graphics.fillStyle(0x6f7881, 1);
-    graphics.fillRect(0, 552, GAME_WIDTH, 34);
-    graphics.fillStyle(0x4a535c, 1);
-    graphics.fillRect(0, 640, GAME_WIDTH, 80);
-    graphics.lineStyle(2, 0x9da6ac, 0.28);
-    for (let x = -30; x < GAME_WIDTH; x += 86) {
-      graphics.lineBetween(x, 593, x + 54, 593);
-      graphics.lineBetween(x + 20, 672, x + 74, 672);
-    }
-
-    graphics.fillStyle(0x2b3540, 0.35);
-    graphics.fillEllipse(704, 615, 642, 42);
-
-    graphics.fillStyle(0x4f352b, 1);
-    graphics.fillRect(338, 154, 660, 402);
-    graphics.fillStyle(0xc5945d, 1);
-    graphics.fillRect(362, 174, 612, 382);
-    graphics.fillStyle(0xe0b174, 1);
-    for (let y = 194; y < 548; y += 52) {
-      graphics.fillRect(362, y, 612, 4);
-    }
-    for (let x = 390; x < 960; x += 96) {
-      graphics.fillRect(x, 174, 4, 382);
-    }
-
-    graphics.fillStyle(0x263545, 1);
-    graphics.fillRect(330, 128, 680, 48);
-    graphics.fillStyle(0xd4362f, 1);
-    graphics.fillRect(330, 168, 680, 10);
-    graphics.lineStyle(2, 0xf7efe1, 0.18);
-    graphics.strokeRect(330, 128, 680, 50);
+    const road = this.add
+      .tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'road-sidewalk-loop')
+      .setOrigin(0)
+      .setDepth(18);
+    road.setTileScale(GAME_WIDTH / road.texture.getSourceImage().width, GAME_HEIGHT / road.texture.getSourceImage().height);
 
     this.add
-      .text(670, 153, 'ANDERSEN AUTO SERVICE', {
+      .text(GAME_WIDTH / 2, 256, 'ANDERSEN AUTO SERVICE', {
         fontFamily: 'Arial',
         fontStyle: 'bold',
-        fontSize: '31px',
+        fontSize: '32px',
         color: '#f7efe1',
+        stroke: '#17212f',
+        strokeThickness: 5,
       })
       .setOrigin(0.5)
       .setDepth(12);
-
-    graphics.fillStyle(0xb84934, 1);
-    graphics.fillRect(402, 456, 118, 100);
-    graphics.fillStyle(0x263545, 1);
-    graphics.fillRect(420, 474, 82, 82);
-    graphics.fillStyle(0x98d5e9, 0.78);
-    graphics.fillRect(430, 484, 62, 62);
-    graphics.fillStyle(0xf7efe1, 1);
-    graphics.fillCircle(493, 518, 7);
-
-    graphics.fillStyle(0x8b2d2d, 1);
-    graphics.fillRoundedRect(568, 487, 174, 68, 6);
-    graphics.fillStyle(0xf5f0e8, 1);
-    graphics.fillRect(582, 501, 146, 9);
-    graphics.fillRect(582, 521, 116, 9);
-
-    graphics.fillStyle(0x253545, 1);
-    graphics.fillRect(804, 484, 104, 72);
-    graphics.fillStyle(0x5d6871, 1);
-    graphics.fillRect(814, 494, 84, 52);
-    graphics.fillStyle(0xe0d05f, 1);
-    graphics.fillCircle(866, 520, 14);
 
     this.add
       .text(964, 660, 'WASD / PILETASTER: BEVÆG DIG     F: STIGE     HOLD E: PUDS VINDUE', {
