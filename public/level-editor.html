@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AA Game Level Editor</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, Helvetica, sans-serif;
+        --bg: #151a20;
+        --panel: #202833;
+        --panel-2: #18202a;
+        --line: #344252;
+        --text: #f4efe6;
+        --muted: #aeb8c2;
+        --blue: #2f76b7;
+        --red: #d4362f;
+        --green: #2f8a4a;
+        --yellow: #d4a82f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        overflow: hidden;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        height: 100vh;
+        min-width: 1040px;
+      }
+
+      .stage {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-width: 0;
+      }
+
+      .topbar,
+      .statusbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: #10161d;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .statusbar {
+        min-height: 44px;
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .title {
+        font-weight: 800;
+        margin-right: 10px;
+      }
+
+      .canvas-wrap {
+        display: grid;
+        place-items: center;
+        overflow: auto;
+        padding: 16px;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          #141b24;
+        background-size: 16px 16px;
+      }
+
+      canvas {
+        width: min(100%, 1280px);
+        height: auto;
+        border: 1px solid #506070;
+        background: #1d2630;
+        image-rendering: auto;
+        cursor: crosshair;
+      }
+
+      aside {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 0;
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+      }
+
+      .sidebar-head {
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .sidebar-head h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      .sidebar-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .sidebar-scroll {
+        overflow: auto;
+        padding: 12px 14px 16px;
+      }
+
+      .section {
+        margin-bottom: 16px;
+      }
+
+      .section h2 {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: #111821;
+        color: var(--text);
+        padding: 8px;
+      }
+
+      textarea {
+        min-height: 138px;
+        resize: vertical;
+        font-family: Consolas, monospace;
+        font-size: 12px;
+      }
+
+      button {
+        border: 1px solid #4a5a6a;
+        border-radius: 4px;
+        background: #243140;
+        color: var(--text);
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #2d3b4b;
+      }
+
+      button.primary {
+        border-color: #3b89cf;
+        background: var(--blue);
+      }
+
+      button.danger {
+        border-color: #b52c27;
+        background: #852823;
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .object-list {
+        display: grid;
+        gap: 6px;
+        max-height: 220px;
+        overflow: auto;
+        padding-right: 4px;
+      }
+
+      .object-item {
+        display: grid;
+        grid-template-columns: 74px 1fr;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--panel-2);
+        padding: 8px;
+        text-align: left;
+      }
+
+      .object-item.selected {
+        border-color: #69a9e5;
+        box-shadow: 0 0 0 1px #69a9e5 inset;
+      }
+
+      .tag {
+        border-radius: 999px;
+        padding: 3px 7px;
+        color: #fff;
+        font-size: 11px;
+        text-align: center;
+      }
+
+      .tag.windows {
+        background: var(--blue);
+      }
+
+      .tag.spawns {
+        background: var(--green);
+      }
+
+      .tag.zones {
+        background: var(--yellow);
+        color: #1d1a12;
+      }
+
+      .rules {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .validation {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        color: #ffd38b;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .footer {
+        display: grid;
+        gap: 8px;
+        padding: 12px 14px;
+        border-top: 1px solid var(--line);
+        background: #10161d;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="stage">
+        <div class="topbar">
+          <span class="title">AA Level Editor</span>
+          <button id="add-window">Tilføj vindue</button>
+          <button id="add-spawn">Tilføj spawn</button>
+          <button id="add-zone">Tilføj zone</button>
+          <button id="delete-object" class="danger">Slet valgt</button>
+          <label><input id="snap" type="checkbox" checked /> Snap 16px</label>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="level-canvas" width="1280" height="720"></canvas>
+        </div>
+        <div id="status" class="statusbar">Loader map...</div>
+      </section>
+
+      <aside>
+        <div class="sidebar-head">
+          <h1>Leveldata</h1>
+          <p>Rediger Tiled-objekter visuelt. Spillet bruger samme JSON-fil til vinduer, spawns og stigezoner.</p>
+        </div>
+
+        <div class="sidebar-scroll">
+          <section class="section">
+            <h2>Objekter</h2>
+            <div id="object-list" class="object-list"></div>
+          </section>
+
+          <section class="section">
+            <h2>Valgt objekt</h2>
+            <div class="row"><label for="object-layer">Layer</label><select id="object-layer"></select></div>
+            <div class="row"><label for="object-name">Navn</label><input id="object-name" /></div>
+            <div class="row"><label for="object-type">Type</label><input id="object-type" /></div>
+            <div class="row"><label for="object-x">X</label><input id="object-x" type="number" step="1" /></div>
+            <div class="row"><label for="object-y">Y</label><input id="object-y" type="number" step="1" /></div>
+            <div class="row"><label for="object-width">Bredde</label><input id="object-width" type="number" step="1" /></div>
+            <div class="row"><label for="object-height">Højde</label><input id="object-height" type="number" step="1" /></div>
+          </section>
+
+          <section class="section">
+            <h2>Gameplay-regler</h2>
+            <ul class="rules">
+              <li>Alle vinduer skal ligge i layeret <strong>windows</strong> og have type <strong>window</strong>.</li>
+              <li>Øverste vinduer kræver stige; nederste vinduer kan pudses fra jorden.</li>
+              <li>Stigen kan kun hentes i <strong>van-ladder-pickup</strong> og sættes i <strong>ladder-wall</strong>.</li>
+              <li>Spawns skal hedde <strong>player</strong>, <strong>van</strong>, <strong>ronny</strong>, <strong>cleaning-kit</strong> og <strong>ladder-roof</strong>.</li>
+              <li>Movement-lane styrer hvor spilleren må gå på Y-aksen.</li>
+            </ul>
+          </section>
+
+          <section class="section">
+            <h2>Validation</h2>
+            <ul id="validation" class="validation"></ul>
+          </section>
+
+          <section class="section">
+            <h2>Eksport</h2>
+            <textarea id="export-json" spellcheck="false"></textarea>
+          </section>
+        </div>
+
+        <div class="footer">
+          <div class="button-row">
+            <button id="copy-json">Kopier JSON</button>
+            <button id="download-json" class="primary">Gem som fil</button>
+            <label>
+              <input id="import-json" type="file" accept="application/json,.json" hidden />
+              <button id="import-button" type="button">Importer</button>
+            </label>
+          </div>
+          <div class="small">Browseren kan ikke automatisk overskrive projektfilen uden fil-dialog. Brug “Gem som fil” og vælg mapfilen, når Chrome spørger.</div>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module">
+      const MAP_PATH = '/assets/maps/andersen-auto-service.json';
+      const GRID = 16;
+      const canvas = document.querySelector('#level-canvas');
+      const ctx = canvas.getContext('2d');
+      const statusEl = document.querySelector('#status');
+      const listEl = document.querySelector('#object-list');
+      const validationEl = document.querySelector('#validation');
+      const exportEl = document.querySelector('#export-json');
+      const snapEl = document.querySelector('#snap');
+      const layerEl = document.querySelector('#object-layer');
+      const nameEl = document.querySelector('#object-name');
+      const typeEl = document.querySelector('#object-type');
+      const xEl = document.querySelector('#object-x');
+      const yEl = document.querySelector('#object-y');
+      const widthEl = document.querySelector('#object-width');
+      const heightEl = document.querySelector('#object-height');
+      let map;
+      let selected;
+      let dragOffset = { x: 0, y: 0 };
+      let isDragging = false;
+
+      async function boot() {
+        const response = await fetch(`${MAP_PATH}?v=${Date.now()}`);
+        map = await response.json();
+        layerEl.innerHTML = ['windows', 'spawns', 'zones']
+          .map((layer) => `<option value="${layer}">${layer}</option>`)
+          .join('');
+        selected = getObjects()[0];
+        bindEvents();
+        render();
+      }
+
+      function bindEvents() {
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', () => {
+          isDragging = false;
+        });
+
+        for (const element of [layerEl, nameEl, typeEl, xEl, yEl, widthEl, heightEl]) {
+          element.addEventListener('input', updateSelectedFromForm);
+        }
+
+        document.querySelector('#add-window').addEventListener('click', () => addObject('windows'));
+        document.querySelector('#add-spawn').addEventListener('click', () => addObject('spawns'));
+        document.querySelector('#add-zone').addEventListener('click', () => addObject('zones'));
+        document.querySelector('#delete-object').addEventListener('click', deleteSelected);
+        document.querySelector('#copy-json').addEventListener('click', copyJson);
+        document.querySelector('#download-json').addEventListener('click', saveJson);
+        document.querySelector('#import-button').addEventListener('click', () => document.querySelector('#import-json').click());
+        document.querySelector('#import-json').addEventListener('change', importJson);
+      }
+
+      function getLayer(name) {
+        return map.layers.find((layer) => layer.name === name);
+      }
+
+      function getObjects() {
+        return map.layers
+          .filter((layer) => ['windows', 'spawns', 'zones'].includes(layer.name))
+          .flatMap((layer) => layer.objects.map((object) => ({ layer: layer.name, object })));
+      }
+
+      function pointFromEvent(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+          y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+        };
+      }
+
+      function rectFor(item) {
+        const object = item.object;
+        if (object.point) {
+          return { x: object.x - 8, y: object.y - 8, width: 16, height: 16 };
+        }
+        return { x: object.x, y: object.y, width: object.width || 1, height: object.height || 1 };
+      }
+
+      function hitTest(point) {
+        return getObjects()
+          .slice()
+          .reverse()
+          .find((item) => {
+            const rect = rectFor(item);
+            return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+          });
+      }
+
+      function onPointerDown(event) {
+        const point = pointFromEvent(event);
+        const hit = hitTest(point);
+        if (!hit) {
+          return;
+        }
+
+        selected = hit;
+        const rect = rectFor(selected);
+        dragOffset = { x: point.x - rect.x, y: point.y - rect.y };
+        isDragging = true;
+        render();
+      }
+
+      function onPointerMove(event) {
+        if (!isDragging || !selected) {
+          return;
+        }
+
+        const point = pointFromEvent(event);
+        const object = selected.object;
+        let x = point.x - dragOffset.x;
+        let y = point.y - dragOffset.y;
+        if (snapEl.checked) {
+          x = Math.round(x / GRID) * GRID;
+          y = Math.round(y / GRID) * GRID;
+        }
+        if (object.point) {
+          object.x = Math.round(x + 8);
+          object.y = Math.round(y + 8);
+        } else {
+          object.x = Math.round(x);
+          object.y = Math.round(y);
+        }
+        render();
+      }
+
+      function updateSelectedFromForm() {
+        if (!selected) {
+          return;
+        }
+
+        const oldLayer = getLayer(selected.layer);
+        const nextLayerName = layerEl.value;
+        const nextLayer = getLayer(nextLayerName);
+        if (oldLayer !== nextLayer) {
+          oldLayer.objects = oldLayer.objects.filter((object) => object !== selected.object);
+          nextLayer.objects.push(selected.object);
+          selected.layer = nextLayerName;
+        }
+
+        selected.object.name = nameEl.value;
+        selected.object.type = typeEl.value;
+        selected.object.x = Number(xEl.value);
+        selected.object.y = Number(yEl.value);
+        selected.object.width = Number(widthEl.value);
+        selected.object.height = Number(heightEl.value);
+        selected.object.point = selected.layer === 'spawns';
+        render();
+      }
+
+      function addObject(layerName) {
+        const layer = getLayer(layerName);
+        const id = map.nextobjectid++;
+        const object = {
+          height: layerName === 'spawns' ? 1 : layerName === 'windows' ? 108 : 96,
+          id,
+          name: layerName === 'windows' ? `window-${id}` : layerName === 'spawns' ? `spawn-${id}` : `zone-${id}`,
+          point: layerName === 'spawns',
+          rotation: 0,
+          type: layerName === 'windows' ? 'window' : layerName === 'spawns' ? 'spawn' : 'interaction',
+          visible: true,
+          width: layerName === 'spawns' ? 1 : layerName === 'windows' ? 126 : 180,
+          x: 640,
+          y: 420,
+        };
+        layer.objects.push(object);
+        selected = { layer: layerName, object };
+        render();
+      }
+
+      function deleteSelected() {
+        if (!selected) {
+          return;
+        }
+        const layer = getLayer(selected.layer);
+        layer.objects = layer.objects.filter((object) => object !== selected.object);
+        selected = getObjects()[0];
+        render();
+      }
+
+      async function copyJson() {
+        await navigator.clipboard.writeText(exportEl.value);
+        statusEl.textContent = 'JSON kopieret.';
+      }
+
+      async function saveJson() {
+        const text = exportMap();
+        if ('showSaveFilePicker' in window) {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: 'andersen-auto-service.json',
+            types: [{ description: 'Tiled JSON', accept: { 'application/json': ['.json'] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(text);
+          await writable.close();
+          statusEl.textContent = 'Map gemt via fil-dialog.';
+          return;
+        }
+
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'andersen-auto-service.json';
+        link.click();
+        URL.revokeObjectURL(url);
+        statusEl.textContent = 'Map downloadet.';
+      }
+
+      async function importJson(event) {
+        const [file] = event.target.files;
+        if (!file) {
+          return;
+        }
+        map = JSON.parse(await file.text());
+        selected = getObjects()[0];
+        render();
+      }
+
+      function exportMap() {
+        return `${JSON.stringify(map, null, 2)}\n`;
+      }
+
+      function validate() {
+        const warnings = [];
+        const windows = getLayer('windows')?.objects ?? [];
+        const spawns = getLayer('spawns')?.objects ?? [];
+        const zones = getLayer('zones')?.objects ?? [];
+        const requiredSpawns = ['player', 'van', 'cleaning-kit', 'ronny', 'ladder-roof'];
+        const requiredZones = ['player-lane', 'van-ladder-pickup', 'ladder-wall'];
+
+        if (windows.length === 0) warnings.push('Der er ingen vinduer i windows-layeret.');
+        for (const spawn of requiredSpawns) {
+          if (!spawns.some((object) => object.name === spawn)) warnings.push(`Mangler spawn: ${spawn}.`);
+        }
+        for (const zone of requiredZones) {
+          if (!zones.some((object) => object.name === zone)) warnings.push(`Mangler zone: ${zone}.`);
+        }
+        for (const windowObject of windows) {
+          if (windowObject.type !== 'window') warnings.push(`${windowObject.name} skal have type "window".`);
+          if (!windowObject.width || !windowObject.height) warnings.push(`${windowObject.name} mangler bredde/højde.`);
+        }
+        return warnings;
+      }
+
+      function render() {
+        drawScene();
+        drawObjects();
+        renderList();
+        renderForm();
+        renderValidation();
+        exportEl.value = exportMap();
+        statusEl.textContent = selected
+          ? `Valgt: ${selected.layer}/${selected.object.name}  x:${Math.round(selected.object.x)} y:${Math.round(selected.object.y)}`
+          : 'Intet objekt valgt.';
+      }
+
+      function drawScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const sky = ctx.createLinearGradient(0, 0, 0, 720);
+        sky.addColorStop(0, '#9ecfe0');
+        sky.addColorStop(0.68, '#cda565');
+        sky.addColorStop(1, '#657480');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, 1280, 720);
+
+        ctx.fillStyle = '#4f352b';
+        ctx.fillRect(338, 154, 660, 402);
+        ctx.fillStyle = '#c5945d';
+        ctx.fillRect(362, 174, 612, 382);
+        ctx.fillStyle = '#263545';
+        ctx.fillRect(330, 128, 680, 48);
+        ctx.fillStyle = '#d4362f';
+        ctx.fillRect(330, 168, 680, 10);
+        ctx.fillStyle = '#57636d';
+        ctx.fillRect(0, 552, 1280, 168);
+        ctx.fillStyle = '#4a535c';
+        ctx.fillRect(0, 640, 1280, 80);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+        ctx.fillRect(0, 552, 1280, 34);
+      }
+
+      function drawObjects() {
+        for (const item of getObjects()) {
+          const rect = rectFor(item);
+          const isSelected = item.object === selected?.object;
+          ctx.save();
+          ctx.globalAlpha = item.layer === 'zones' ? 0.42 : 0.9;
+          ctx.fillStyle = item.layer === 'windows' ? '#5db5e6' : item.layer === 'spawns' ? '#2f8a4a' : '#d4a82f';
+          ctx.strokeStyle = isSelected ? '#ffffff' : '#17212f';
+          ctx.lineWidth = isSelected ? 4 : 2;
+          ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 13px Arial';
+          ctx.fillText(item.object.name, rect.x + 6, Math.max(18, rect.y - 6));
+          ctx.restore();
+        }
+      }
+
+      function renderList() {
+        listEl.innerHTML = getObjects()
+          .map((item) => {
+            const selectedClass = item.object === selected?.object ? ' selected' : '';
+            return `<button class="object-item${selectedClass}" data-layer="${item.layer}" data-id="${item.object.id}">
+              <span class="tag ${item.layer}">${item.layer}</span>
+              <span>${item.object.name}</span>
+            </button>`;
+          })
+          .join('');
+
+        for (const button of listEl.querySelectorAll('button')) {
+          button.addEventListener('click', () => {
+            selected = getObjects().find((item) => item.layer === button.dataset.layer && String(item.object.id) === button.dataset.id);
+            render();
+          });
+        }
+      }
+
+      function renderForm() {
+        const disabled = !selected;
+        for (const element of [layerEl, nameEl, typeEl, xEl, yEl, widthEl, heightEl]) {
+          element.disabled = disabled;
+        }
+        if (!selected) {
+          return;
+        }
+        layerEl.value = selected.layer;
+        nameEl.value = selected.object.name ?? '';
+        typeEl.value = selected.object.type ?? '';
+        xEl.value = Math.round(selected.object.x ?? 0);
+        yEl.value = Math.round(selected.object.y ?? 0);
+        widthEl.value = Math.round(selected.object.width ?? 0);
+        heightEl.value = Math.round(selected.object.height ?? 0);
+      }
+
+      function renderValidation() {
+        const warnings = validate();
+        validationEl.innerHTML = warnings.length
+          ? warnings.map((warning) => `<li>${warning}</li>`).join('')
+          : '<li>Alt ser klar ud.</li>';
+      }
+
+      boot().catch((error) => {
+        statusEl.textContent = `Kunne ikke loade map: ${error.message}`;
+      });
+    </script>
+  </body>
+</html>

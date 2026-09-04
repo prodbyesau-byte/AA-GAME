@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { GAME_RULES } from '../data/gameRules';
+import { StateMachine } from '../systems/StateMachine';
+import type { PlayerLaneConfig } from '../types/level';
 
 interface PlayerControls {
   cursors: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -8,15 +11,21 @@ interface PlayerControls {
   downKey: Phaser.Input.Keyboard.Key;
 }
 
-export class Player extends Phaser.Physics.Arcade.Sprite {
-  private readonly speed = 255;
-  private readonly laneSpeed = 145;
-  private readonly laneTop = 558;
-  private readonly laneBottom = 670;
-  private movementLocked = false;
+type PlayerState = 'idle' | 'walking' | 'soaping' | 'squeegee' | 'ladder-idle' | 'ladder-climbing';
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+export class Player extends Phaser.Physics.Arcade.Sprite {
+  private readonly speed = GAME_RULES.player.normalSpeed;
+  private readonly laneSpeed = GAME_RULES.player.laneSpeed;
+  private readonly laneTop: number;
+  private readonly laneBottom: number;
+  private readonly stateMachine: StateMachine<PlayerState>;
+  private movementLocked = false;
+  private speedMultiplier = 1;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, lane: PlayerLaneConfig = { top: 558, bottom: 670 }) {
     super(scene, x, y, 'employee-idle-0');
+    this.laneTop = lane.top;
+    this.laneBottom = lane.bottom;
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -26,7 +35,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.configureBody();
     this.createAnimations(scene);
-    this.play('employee-idle');
+    this.stateMachine = new StateMachine<PlayerState>('idle', {
+      idle: { enter: () => this.play('employee-idle', true) },
+      walking: { enter: () => this.play('employee-walk', true) },
+      soaping: { enter: () => this.play('employee-soaping', true) },
+      squeegee: { enter: () => this.play('employee-squeegee', true) },
+      'ladder-idle': { enter: () => this.play('employee-idle', true) },
+      'ladder-climbing': { enter: () => this.play('employee-walk', true) },
+    });
   }
 
   update(controls: PlayerControls): void {
@@ -39,21 +55,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const movingRight = controls.rightKey.isDown || controls.cursors.right.isDown;
     const movingUp = controls.upKey.isDown || controls.cursors.up.isDown;
     const movingDown = controls.downKey.isDown || controls.cursors.down.isDown;
-    const horizontalVelocity = movingLeft === movingRight ? 0 : movingLeft ? -this.speed : this.speed;
-    const verticalVelocity = movingUp === movingDown ? 0 : movingUp ? -this.laneSpeed : this.laneSpeed;
+    const currentSpeed = this.speed * this.speedMultiplier;
+    const currentLaneSpeed = this.laneSpeed * this.speedMultiplier;
+    const horizontalVelocity = movingLeft === movingRight ? 0 : movingLeft ? -currentSpeed : currentSpeed;
+    const verticalVelocity = movingUp === movingDown ? 0 : movingUp ? -currentLaneSpeed : currentLaneSpeed;
 
     this.setVelocity(horizontalVelocity, verticalVelocity);
     this.y = Phaser.Math.Clamp(this.y, this.laneTop, this.laneBottom);
 
     if (horizontalVelocity === 0 && verticalVelocity === 0) {
-      this.play('employee-idle', true);
+      this.stateMachine.setState('idle');
       return;
     }
 
     if (horizontalVelocity !== 0) {
       this.setFlipX(horizontalVelocity < 0);
     }
-    this.play('employee-walk', true);
+    this.stateMachine.setState('walking');
     this.setDepth(Math.floor(this.y));
   }
 
@@ -61,12 +79,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.beginSoapingPose();
   }
 
+  setCarryingLadder(isCarrying: boolean): void {
+    this.speedMultiplier = isCarrying ? GAME_RULES.player.carryingLadderSpeedMultiplier : 1;
+  }
+
   beginSoapingPose(): void {
     this.movementLocked = true;
     this.setVelocity(0, 0);
     this.setFlipX(false);
     this.setDepth(300);
-    this.play('employee-soaping', true);
+    this.stateMachine.setState('soaping');
   }
 
   beginSqueegeePose(): void {
@@ -74,13 +96,24 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(0, 0);
     this.setFlipX(false);
     this.setDepth(300);
-    this.play('employee-squeegee', true);
+    this.stateMachine.setState('squeegee');
+  }
+
+  beginLadderPose(isMoving: boolean): void {
+    this.setVelocity(0, 0);
+    this.setFlipX(false);
+    this.stateMachine.setState(isMoving ? 'ladder-climbing' : 'ladder-idle');
   }
 
   endCleaningPose(): void {
     this.movementLocked = false;
     this.setDepth(Math.floor(this.y));
-    this.play('employee-idle', true);
+    this.stateMachine.setState('idle');
+  }
+
+  endLadderPose(): void {
+    this.setDepth(Math.floor(this.y));
+    this.stateMachine.setState('idle');
   }
 
   private configureSpriteScale(): void {

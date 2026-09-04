@@ -6,9 +6,12 @@
   "main": "src/main.ts",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:test": "vite --host 127.0.0.1 --port 5173 --open /?test=1",
+    "editor": "vite --host 127.0.0.1 --port 5173 --open /level-editor.html",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "keywords": [],
   "author": "",

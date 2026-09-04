@@ -11,6 +11,7 @@ const PLAYER_PORTRAIT_WIDTH = 258 * SPRITE_TEXTURE_SCALE;
 const PLAYER_PORTRAIT_HEIGHT = 494 * SPRITE_TEXTURE_SCALE;
 const VAN_TEXTURE_WIDTH = 430 * SPRITE_TEXTURE_SCALE;
 const VAN_TEXTURE_HEIGHT = 195 * SPRITE_TEXTURE_SCALE;
+const RONNY_TEXTURE_SCALE = 4;
 
 export function createPlaceholderTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists('player-sheet')) {
@@ -20,7 +21,9 @@ export function createPlaceholderTextures(scene: Phaser.Scene): void {
   }
   createVanTexture(scene);
   createEquipmentTexture(scene);
+  createLadderTexture(scene);
   createNpcTexture(scene);
+  createRonnyTexture(scene);
   createUiTextures(scene);
 }
 
@@ -583,6 +586,51 @@ function createEquipmentTexture(scene: Phaser.Scene): void {
   texture.refresh();
 }
 
+function createLadderTexture(scene: Phaser.Scene): void {
+  const texture = makeCanvas(scene, 'work-ladder', 92 * SPRITE_TEXTURE_SCALE, 360 * SPRITE_TEXTURE_SCALE);
+  const ctx = texture.context;
+  const width = texture.width;
+  const height = texture.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const railLeft = 22 * SPRITE_TEXTURE_SCALE;
+  const railRight = 70 * SPRITE_TEXTURE_SCALE;
+  const top = 18 * SPRITE_TEXTURE_SCALE;
+  const bottom = 344 * SPRITE_TEXTURE_SCALE;
+
+  ctx.strokeStyle = '#5f6971';
+  ctx.lineWidth = 10 * SPRITE_TEXTURE_SCALE;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(railLeft, top);
+  ctx.lineTo(railLeft, bottom);
+  ctx.moveTo(railRight, top);
+  ctx.lineTo(railRight, bottom);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#d7dee3';
+  ctx.lineWidth = 6 * SPRITE_TEXTURE_SCALE;
+  for (let y = 48 * SPRITE_TEXTURE_SCALE; y <= 314 * SPRITE_TEXTURE_SCALE; y += 34 * SPRITE_TEXTURE_SCALE) {
+    ctx.beginPath();
+    ctx.moveTo(railLeft + 3 * SPRITE_TEXTURE_SCALE, y);
+    ctx.lineTo(railRight - 3 * SPRITE_TEXTURE_SCALE, y);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.lineWidth = 2 * SPRITE_TEXTURE_SCALE;
+  ctx.beginPath();
+  ctx.moveTo(railLeft - 5 * SPRITE_TEXTURE_SCALE, top + 4 * SPRITE_TEXTURE_SCALE);
+  ctx.lineTo(railLeft - 5 * SPRITE_TEXTURE_SCALE, bottom - 10 * SPRITE_TEXTURE_SCALE);
+  ctx.moveTo(railRight - 5 * SPRITE_TEXTURE_SCALE, top + 4 * SPRITE_TEXTURE_SCALE);
+  ctx.lineTo(railRight - 5 * SPRITE_TEXTURE_SCALE, bottom - 10 * SPRITE_TEXTURE_SCALE);
+  ctx.stroke();
+
+  texture.refresh();
+}
+
 function createNpcTexture(scene: Phaser.Scene): void {
   const texture = makeCanvas(scene, 'customer-mechanic', 82, 118);
   const ctx = texture.context;
@@ -615,6 +663,62 @@ function createNpcTexture(scene: Phaser.Scene): void {
   ctx.lineTo(11, 73);
   ctx.moveTo(60, 58);
   ctx.lineTo(70, 68);
+  ctx.stroke();
+
+  texture.refresh();
+}
+
+function createRonnyTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('ronny-sheet')) {
+    createTextureFromSheet(scene, {
+      key: 'ronny-boss',
+      sourceKey: 'ronny-sheet',
+      x: 35,
+      y: 68,
+      width: 278,
+      height: 662,
+      outputWidth: 430 * RONNY_TEXTURE_SCALE,
+      outputHeight: 760 * RONNY_TEXTURE_SCALE,
+      drawX: 76 * RONNY_TEXTURE_SCALE,
+      drawY: 78 * RONNY_TEXTURE_SCALE,
+      drawWidth: 278 * RONNY_TEXTURE_SCALE,
+      drawHeight: 662 * RONNY_TEXTURE_SCALE,
+    });
+    return;
+  }
+
+  const texture = makeCanvas(scene, 'ronny-boss', 92, 128);
+  const ctx = texture.context;
+  ctx.clearRect(0, 0, 92, 128);
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  ctx.beginPath();
+  ctx.ellipse(46, 120, 30, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#12171d';
+  ctx.fillRect(30, 58, 34, 35);
+  ctx.fillRect(31, 92, 13, 28);
+  ctx.fillRect(49, 92, 13, 28);
+  ctx.fillStyle = '#f0c29a';
+  ctx.fillRect(35, 27, 23, 26);
+  ctx.fillStyle = '#9aa0a7';
+  ctx.fillRect(31, 20, 30, 9);
+  ctx.fillRect(29, 28, 6, 10);
+  ctx.fillRect(57, 28, 6, 10);
+  ctx.fillStyle = '#101820';
+  ctx.fillRect(40, 36, 3, 3);
+  ctx.fillRect(52, 36, 3, 3);
+  ctx.fillStyle = '#f7efe1';
+  ctx.fillRect(42, 45, 12, 3);
+  ctx.strokeStyle = '#f0c29a';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(31, 62);
+  ctx.lineTo(18, 80);
+  ctx.moveTo(63, 62);
+  ctx.lineTo(76, 77);
   ctx.stroke();
 
   texture.refresh();

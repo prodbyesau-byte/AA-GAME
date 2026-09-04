@@ -1,11 +1,18 @@
 import Phaser from 'phaser';
+import { getGameplayTuning } from '../addons/testMode';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, SCENE_KEYS } from '../config/constants';
+import { GAME_RULES } from '../data/gameRules';
 import { prototypeJob } from '../data/jobs';
 import { Player } from '../entities/Player';
 import { WorkVan } from '../entities/WorkVan';
+import { loadTiledJobLevel } from '../systems/TiledLevelLoader';
 import { WindowManager } from '../systems/WindowManager';
 import { JobHud } from '../ui/JobHud';
 import type { JobResult, PrototypeJob, WindowData } from '../types/game';
+import type { JobLevelConfig } from '../types/level';
+
+type CleaningPhase = 'soap' | 'squeegee';
+type LadderState = 'onVan' | 'carried' | 'placed';
 
 export class JobScene extends Phaser.Scene {
   private player!: Player;
@@ -16,10 +23,13 @@ export class JobScene extends Phaser.Scene {
   private upKey!: Phaser.Input.Keyboard.Key;
   private downKey!: Phaser.Input.Keyboard.Key;
   private interactKey!: Phaser.Input.Keyboard.Key;
+  private ladderKey!: Phaser.Input.Keyboard.Key;
   private job!: PrototypeJob;
+  private level!: JobLevelConfig;
   private windows!: WindowManager;
   private hud!: JobHud;
   private prompt!: Phaser.GameObjects.Text;
+  private ladderSprite!: Phaser.GameObjects.Image;
   private holdMeterBack!: Phaser.GameObjects.Rectangle;
   private holdMeterFill!: Phaser.GameObjects.Rectangle;
   private holdLabel!: Phaser.GameObjects.Text;
@@ -27,26 +37,35 @@ export class JobScene extends Phaser.Scene {
   private activeWindow?: WindowData;
   private cleaningWindow?: WindowData;
   private cleaningHoldMs = 0;
-  private cleaningPhase: 'soap' | 'squeegee' = 'soap';
+  private cleaningPhase: CleaningPhase = 'soap';
+  private ladderState: LadderState = 'onVan';
+  private playerOnLadder = false;
+  private ladderX = 190;
   private mustReleaseInteract = false;
-  private readonly requiredPhaseHoldMs = 15000;
+  private requiredPhaseHoldMs: number = GAME_RULES.cleaning.phaseHoldMs;
 
   constructor() {
     super(SCENE_KEYS.JOB);
   }
 
   create(): void {
-    this.job = structuredClone(prototypeJob);
+    this.level = loadTiledJobLevel(this, 'andersen-auto-service-map', prototypeJob);
+    this.job = { ...structuredClone(prototypeJob), windows: this.level.windows };
+    this.requiredPhaseHoldMs = getGameplayTuning().cleanPhaseHoldMs;
     this.completedWindows = 0;
 
     this.drawLocation();
-    this.van = new WorkVan(this, 190, GROUND_Y + 28);
-    this.add.image(340, GROUND_Y + 44, 'cleaning-kit').setOrigin(0.5, 1).setDepth(GROUND_Y + 44);
-    this.add.image(1034, GROUND_Y + 38, 'customer-mechanic').setOrigin(0.5, 1).setDepth(GROUND_Y + 38);
+    this.van = new WorkVan(this, this.level.spawns.van.x, this.level.spawns.van.y);
+    this.add
+      .image(this.level.spawns.cleaningKit.x, this.level.spawns.cleaningKit.y, 'cleaning-kit')
+      .setOrigin(0.5, 1)
+      .setDepth(this.level.spawns.cleaningKit.y);
+    this.addRonny();
+    this.createLadder();
     this.drawSpeechBubble();
 
     this.windows = new WindowManager(this, this.job.windows);
-    this.player = new Player(this, 410, GROUND_Y + 34);
+    this.player = new Player(this, this.level.spawns.player.x, this.level.spawns.player.y, this.level.playerLane);
     this.physics.add.collider(this.player, this.van);
     this.hud = new JobHud(this, this.job);
 
@@ -68,25 +87,241 @@ export class JobScene extends Phaser.Scene {
     this.rightKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
     this.upKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W);
     this.downKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S);
-    this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.interactKey = this.input.keyboard!.addKey(GAME_RULES.input.interact);
+    this.ladderKey = this.input.keyboard!.addKey(GAME_RULES.input.ladder);
 
     this.createHoldMeter();
   }
 
   update(_: number, delta: number): void {
-    this.activeWindow = this.windows.getNearestDirtyWindow(this.player.x);
+    this.handleLadderInput();
+
+    if (this.playerOnLadder) {
+      this.updateLadderClimb(delta);
+    } else {
+      this.player.update({
+        cursors: this.cursors,
+        leftKey: this.leftKey,
+        rightKey: this.rightKey,
+        upKey: this.upKey,
+        downKey: this.downKey,
+      });
+      this.enterLadderIfRequested();
+      if (this.playerOnLadder) {
+        this.updateLadderClimb(delta);
+      }
+    }
+
+    this.updateLadderSprite();
+    this.activeWindow = this.getNearestReachableDirtyWindow();
     this.windows.setFocusedWindow(this.activeWindow?.id);
     this.updateCleaningHold(delta);
 
-    this.player.update({
-      cursors: this.cursors,
-      leftKey: this.leftKey,
-      rightKey: this.rightKey,
-      upKey: this.upKey,
-      downKey: this.downKey,
-    });
-
     this.updateInteractionPrompt();
+  }
+
+  private addRonny(): void {
+    const ronnyKey = this.textures.exists('ronny-boss') ? 'ronny-boss' : 'customer-mechanic';
+    const ronny = this.add
+      .image(this.level.spawns.ronny.x, this.level.spawns.ronny.y, ronnyKey)
+      .setOrigin(0.5, 1)
+      .setDepth(this.level.spawns.ronny.y);
+    if (ronnyKey === 'ronny-boss') {
+      ronny.setScale(0.056);
+    }
+  }
+
+  private createLadder(): void {
+    this.ladderSprite = this.add
+      .image(this.level.ladder.roofSpawn.x, this.level.ladder.roofSpawn.y, 'work-ladder')
+      .setOrigin(0.5, 1)
+      .setScale(0.58)
+      .setRotation(Math.PI / 2)
+      .setDepth(45);
+  }
+
+  private handleLadderInput(): void {
+    if (this.cleaningWindow || !Phaser.Input.Keyboard.JustDown(this.ladderKey)) {
+      return;
+    }
+
+    if (this.ladderState === 'onVan' && this.isPlayerNearVanLadder()) {
+      this.pickUpLadder();
+      return;
+    }
+
+    if (this.ladderState === 'carried') {
+      if (this.canPlaceLadder()) {
+        this.placeLadder();
+      }
+      return;
+    }
+
+    if (this.ladderState === 'placed' && !this.playerOnLadder && this.isPlayerNearLadder()) {
+      this.pickUpLadder();
+    }
+  }
+
+  private pickUpLadder(): void {
+    this.ladderState = 'carried';
+    this.playerOnLadder = false;
+    this.player.setCarryingLadder(true);
+    this.updateLadderSprite();
+  }
+
+  private placeLadder(): void {
+    this.ladderState = 'placed';
+    this.player.setCarryingLadder(false);
+    this.ladderX = this.getLadderPlacementX();
+    this.player.setPosition(this.ladderX + GAME_RULES.ladder.playerOffsetX, this.level.ladder.climbBottomY);
+    this.player.setDepth(Math.floor(this.player.y));
+    this.updateLadderSprite();
+  }
+
+  private updateLadderSprite(): void {
+    if (!this.ladderSprite) {
+      return;
+    }
+
+    if (this.ladderState === 'onVan') {
+      this.ladderSprite
+        .setPosition(this.level.ladder.roofSpawn.x, this.level.ladder.roofSpawn.y)
+        .setScale(0.58)
+        .setRotation(Math.PI / 2)
+        .setDepth(45)
+        .setVisible(true);
+      return;
+    }
+
+    if (this.ladderState === 'carried') {
+      this.ladderSprite
+        .setPosition(this.player.x + GAME_RULES.ladder.carryOffsetX, this.player.y + GAME_RULES.ladder.carryOffsetY)
+        .setScale(GAME_RULES.ladder.carryScale)
+        .setRotation(-0.34)
+        .setDepth(Math.max(1, this.player.depth - 1))
+        .setVisible(true);
+      return;
+    }
+
+    this.ladderSprite
+      .setPosition(this.ladderX + GAME_RULES.ladder.playerOffsetX, this.level.ladder.baseY)
+      .setScale(GAME_RULES.ladder.placedScale)
+      .setRotation(-0.14)
+      .setDepth(260)
+      .setVisible(true);
+  }
+
+  private updateLadderClimb(delta: number): void {
+    if (this.cleaningWindow || this.ladderState !== 'placed') {
+      this.player.setVelocity(0, 0);
+      return;
+    }
+
+    const movingUp = this.upKey.isDown || this.cursors.up.isDown;
+    const movingDown = this.downKey.isDown || this.cursors.down.isDown;
+    const verticalDirection = movingUp === movingDown ? 0 : movingUp ? -1 : 1;
+    const nextY = Phaser.Math.Clamp(
+      this.player.y + verticalDirection * GAME_RULES.ladder.climbSpeed * (delta / 1000),
+      this.level.ladder.climbTopY,
+      this.level.ladder.climbBottomY,
+    );
+
+    this.player.setVelocity(0, 0);
+    this.player.setPosition(this.ladderX + GAME_RULES.ladder.playerOffsetX, nextY);
+    this.player.setFlipX(false);
+    this.player.setDepth(310);
+
+    this.player.beginLadderPose(verticalDirection !== 0);
+
+    if (nextY >= this.level.ladder.climbBottomY - 1 && movingDown) {
+      this.playerOnLadder = false;
+      this.player.setPosition(this.ladderX + GAME_RULES.ladder.playerOffsetX, this.level.ladder.climbBottomY);
+      this.player.endLadderPose();
+    }
+  }
+
+  private enterLadderIfRequested(): void {
+    const wantsToClimb = this.upKey.isDown || this.cursors.up.isDown;
+    if (
+      this.cleaningWindow ||
+      this.playerOnLadder ||
+      this.ladderState !== 'placed' ||
+      !wantsToClimb ||
+      !this.isPlayerNearLadder()
+    ) {
+      return;
+    }
+
+    this.playerOnLadder = true;
+    this.player.setCarryingLadder(false);
+    this.player.setPosition(this.ladderX + GAME_RULES.ladder.playerOffsetX, this.level.ladder.climbBottomY);
+    this.player.setDepth(310);
+  }
+
+  private getNearestReachableDirtyWindow(): WindowData | undefined {
+    return this.job.windows
+      .filter((window) => !window.completed && this.canReachWindow(window))
+      .sort((a, b) => {
+        const aPhaseScore = a.phase === 'soaped' ? -1000 : 0;
+        const bPhaseScore = b.phase === 'soaped' ? -1000 : 0;
+        return Math.abs(a.x - this.player.x) + aPhaseScore - (Math.abs(b.x - this.player.x) + bPhaseScore);
+      })[0];
+  }
+
+  private canReachWindow(window: WindowData): boolean {
+    const isGroundWindow = window.y >= this.level.reach.groundReachY;
+    const distanceFromPlayer = Math.abs(window.x - this.player.x);
+
+    if (isGroundWindow) {
+      return !this.playerOnLadder && distanceFromPlayer <= this.level.reach.groundCleanDistance;
+    }
+
+    return (
+      this.ladderState === 'placed' &&
+      this.playerOnLadder &&
+      Math.abs(window.x - this.ladderX) <= this.level.ladder.cleanDistance &&
+      this.player.y <= GAME_RULES.ladder.highWindowReachPlayerY
+    );
+  }
+
+  private isPlayerNearVanLadder(): boolean {
+    return this.isPlayerInsideZone(this.level.ladder.pickupZone);
+  }
+
+  private canPlaceLadder(): boolean {
+    return this.isPlayerInsideZone(this.level.ladder.wallZone);
+  }
+
+  private isPlayerNearLadder(): boolean {
+    return (
+      Math.abs(this.player.x - (this.ladderX + GAME_RULES.ladder.playerOffsetX)) <= GAME_RULES.ladder.enterDistanceX &&
+      this.player.y >= GAME_RULES.ladder.enterMinY
+    );
+  }
+
+  private isPlayerInsideZone(zone: { x: number; y: number; width: number; height: number }): boolean {
+    return (
+      this.player.x >= zone.x &&
+      this.player.x <= zone.x + zone.width &&
+      this.player.y >= zone.y &&
+      this.player.y <= zone.y + zone.height
+    );
+  }
+
+  private getLadderPlacementX(): number {
+    const nearestUpperWindow = this.job.windows
+      .filter((window) => !window.completed && window.y < this.level.reach.groundReachY)
+      .sort((a, b) => Math.abs(a.x - this.player.x) - Math.abs(b.x - this.player.x))[0];
+
+    if (nearestUpperWindow && Math.abs(nearestUpperWindow.x - this.player.x) <= GAME_RULES.ladder.snapToUpperWindowDistance) {
+      return nearestUpperWindow.x;
+    }
+
+    return Phaser.Math.Clamp(
+      this.player.x,
+      this.level.ladder.wallZone.x,
+      this.level.ladder.wallZone.x + this.level.ladder.wallZone.width,
+    );
   }
 
   private updateCleaningHold(_delta: number): void {
@@ -101,7 +336,7 @@ export class JobScene extends Phaser.Scene {
       return;
     }
 
-    const currentPhase: 'soap' | 'squeegee' = this.activeWindow.phase === 'soaped' ? 'squeegee' : 'soap';
+    const currentPhase: CleaningPhase = this.activeWindow.phase === 'soaped' ? 'squeegee' : 'soap';
 
     if (this.cleaningWindow?.id !== this.activeWindow.id || this.cleaningPhase !== currentPhase) {
       this.cleaningWindow = this.activeWindow;
@@ -203,20 +438,69 @@ export class JobScene extends Phaser.Scene {
   }
 
   private updateInteractionPrompt(): void {
-    if (!this.activeWindow || this.cleaningWindow) {
+    if (this.cleaningWindow) {
       this.prompt.setVisible(false);
       return;
     }
 
-    const isSoaped = this.activeWindow.phase === 'soaped';
-    const label = isSoaped ? 'HOLD E: BRUG SQUEEGEE' : 'HOLD E: SÆB IND';
-    const bgColor = isSoaped ? '#16476d' : '#d4362f';
+    if (this.activeWindow) {
+      const isSoaped = this.activeWindow.phase === 'soaped';
+      const label = isSoaped ? 'HOLD E: BRUG SQUEEGEE' : 'HOLD E: SÆB IND';
+      const bgColor = isSoaped ? '#16476d' : '#d4362f';
+
+      this.prompt
+        .setPosition(this.activeWindow.x, this.activeWindow.y - this.activeWindow.height / 2 - 28)
+        .setText(label)
+        .setStyle({ backgroundColor: bgColor })
+        .setVisible(true);
+      return;
+    }
+
+    const ladderPrompt = this.getLadderPrompt();
+    if (!ladderPrompt) {
+      this.prompt.setVisible(false);
+      return;
+    }
 
     this.prompt
-      .setPosition(this.activeWindow.x, this.activeWindow.y - this.activeWindow.height / 2 - 28)
-      .setText(label)
-      .setStyle({ backgroundColor: bgColor })
+      .setPosition(ladderPrompt.x, ladderPrompt.y)
+      .setText(ladderPrompt.text)
+      .setStyle({ backgroundColor: ladderPrompt.backgroundColor })
       .setVisible(true);
+  }
+
+  private getLadderPrompt(): { text: string; x: number; y: number; backgroundColor: string } | undefined {
+    if (this.ladderState === 'onVan' && this.isPlayerNearVanLadder()) {
+      return { text: 'TRYK F: TAG STIGEN', x: 230, y: GROUND_Y - 152, backgroundColor: '#16476d' };
+    }
+
+    if (this.ladderState === 'carried') {
+      const canPlace = this.canPlaceLadder();
+      return {
+        text: canPlace ? 'TRYK F: SÆT STIGEN OP' : 'GÅ HEN TIL VÆGGEN',
+        x: this.player.x,
+        y: this.player.y - 178,
+        backgroundColor: canPlace ? '#16476d' : '#4a535c',
+      };
+    }
+
+    if (this.ladderState === 'placed' && this.playerOnLadder) {
+      return { text: 'W/S: KRAVL PÅ STIGEN', x: this.ladderX + 38, y: this.player.y - 165, backgroundColor: '#16476d' };
+    }
+
+    if (this.ladderState === 'placed' && this.isPlayerNearLadder()) {
+      return { text: 'W: KRAVL OP    F: TAG STIGEN', x: this.ladderX + 24, y: GROUND_Y - 160, backgroundColor: '#16476d' };
+    }
+
+    const nearestDirty = this.job.windows
+      .filter((window) => !window.completed)
+      .sort((a, b) => Math.abs(a.x - this.player.x) - Math.abs(b.x - this.player.x))[0];
+
+    if (nearestDirty && nearestDirty.y < this.level.reach.groundReachY && Math.abs(nearestDirty.x - this.player.x) <= 95) {
+      return { text: 'DU SKAL BRUGE STIGEN', x: nearestDirty.x, y: nearestDirty.y - nearestDirty.height / 2 - 28, backgroundColor: '#4a535c' };
+    }
+
+    return undefined;
   }
 
   private createHoldMeter(): void {
@@ -244,12 +528,13 @@ export class JobScene extends Phaser.Scene {
       .setVisible(false);
   }
 
-  private updateHoldMeter(window: WindowData, phase: 'soap' | 'squeegee'): void {
+  private updateHoldMeter(window: WindowData, phase: CleaningPhase): void {
     const meterWidth = 160;
     const x = window.x - meterWidth / 2;
     const y = window.y - window.height / 2 - 14;
     const progress = this.cleaningHoldMs / this.requiredPhaseHoldMs;
     const seconds = (this.cleaningHoldMs / 1000).toFixed(1);
+    const requiredSeconds = (this.requiredPhaseHoldMs / 1000).toFixed(this.requiredPhaseHoldMs < 1000 ? 2 : 0);
 
     const fillColor = phase === 'soap' ? 0x48cae4 : 0x0077b6;
     const phaseName = phase === 'soap' ? 'SÆBER IND' : 'SQUEEGEE';
@@ -262,7 +547,7 @@ export class JobScene extends Phaser.Scene {
       .setVisible(true);
     this.holdLabel
       .setPosition(window.x, y - 20)
-      .setText(`${phaseName} ${Math.round(progress * 100)}% (${seconds}s / 15s)`)
+      .setText(`${phaseName} ${Math.round(progress * 100)}% (${seconds}s / ${requiredSeconds}s)`)
       .setVisible(true);
   }
 
@@ -381,7 +666,7 @@ export class JobScene extends Phaser.Scene {
     graphics.fillCircle(866, 520, 14);
 
     this.add
-      .text(1000, 660, 'WASD / PILETASTER: BEVÆG DIG     HOLD E NEDE: PUDS VINDUE', {
+      .text(964, 660, 'WASD / PILETASTER: BEVÆG DIG     F: STIGE     HOLD E: PUDS VINDUE', {
         fontFamily: 'Arial',
         fontStyle: 'bold',
         fontSize: '16px',
